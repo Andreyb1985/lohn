@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Папки с вашими файлами</h2>
+<h2>Ordner mit Ihren Dateien</h2>
 {% if folders %}
   <ul>
   {% for f in folders %}
@@ -10,6 +10,6 @@
   {% endfor %}
   </ul>
 {% else %}
-  <p>Нет доступных файлов.</p>
+  <p>Keine Dateien verfügbar.</p>
 {% endif %}
 {% endblock %}
