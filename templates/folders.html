@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Папки с вашими файлами</h2>
+{% if folders %}
+  <ul>
+  {% for f in folders %}
+    <li>
+      <a href="{{ url_for('view_folder', subdir=f) }}">{{ "/" if f=="" else f }}</a>
+    </li>
+  {% endfor %}
+  </ul>
+{% else %}
+  <p>Нет доступных файлов.</p>
+{% endif %}
+{% endblock %}

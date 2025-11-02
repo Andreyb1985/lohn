@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Админ-панель</h2>
+
+<h3>Добавить пользователя</h3>
+<form method="post" action="{{ url_for('admin_add_user') }}">
+  Имя: <input name="username"><br>
+  Пароль: <input name="password"><br>
+  Номер: <input name="employee_number"><br>
+  Роль: <select name="role"><option value="user">user</option><option value="admin">admin</option></select><br>
+  <button type="submit">Добавить</button>
+</form>
+
+<h3>Добавить новость</h3>
+<form method="post" action="{{ url_for('admin_add_news') }}">
+  Заголовок: <input name="title"><br>
+  Текст: <textarea name="content"></textarea><br>
+  <button type="submit">Добавить новость</button>
+</form>
+
+<h3>Пользователи</h3>
+<ul>
+{% for u in users %}<li>{{ u['username'] }} — {{ u['employee_number'] }} ({{ u['role'] }})</li>{% endfor %}
+</ul>
+
+<h3>Новости</h3>
+<ul>
+{% for n in news %}<li>{{ n['title'] }} — {{ n['content'] }}</li>{% endfor %}
+</ul>
+
+{% endblock %}
