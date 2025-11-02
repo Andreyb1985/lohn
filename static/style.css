@@ -1,6 +1,7 @@
 body { font-family: Arial, sans-serif; background:#f5f5f5; }
-.container { width:900px; margin:30px auto; background:white; padding:20px; border-radius:8px; }
+.container { width:1000px; margin:30px auto; background:white; padding:20px; border-radius:8px; min-height:80vh; }
 .header { display:flex; justify-content:space-between; align-items:center; }
 .flashes { list-style:none; padding:0; }
 .flashes li.success { color:green; }
 .flashes li.danger { color:red; }
+a { color:#1a73e8; }

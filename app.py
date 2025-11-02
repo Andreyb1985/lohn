@@ -1,17 +1,35 @@
-from flask import Flask, render_template, request, redirect, url_for, session, send_from_directory, flash, abort
+from flask import Flask, render_template, request, redirect, url_for, session, send_from_directory, send_file, flash, abort
 import os
 import sqlite3
 from werkzeug.security import check_password_hash, generate_password_hash
 from functools import wraps
+import threading
 
 app = Flask(__name__)
-app.secret_key = "supersecretkey"
+app.secret_key = os.environ.get("SECRET_KEY", "change_this_secret")
 UPLOAD_FOLDER = "uploads"
+DB_FILE = "employees.db"
+EXCEL_FILE = "employees.xlsx"
 
 def get_db_connection():
-    conn = sqlite3.connect("employees.db")
+    conn = sqlite3.connect(DB_FILE)
     conn.row_factory = sqlite3.Row
     return conn
+
+def ensure_db_from_excel():
+    if not os.path.exists(DB_FILE) and os.path.exists(EXCEL_FILE):
+        try:
+            import import_users as iu
+            iu.import_from_excel(EXCEL_FILE, DB_FILE)
+            print("Users aus Excel in DB importiert.")
+        except Exception as e:
+            print("Import fehlgeschlagen:", e)
+
+def start_background_setup():
+    t = threading.Thread(target=ensure_db_from_excel, daemon=True)
+    t.start()
+
+start_background_setup()
 
 def login_required(f):
     @wraps(f)
@@ -30,7 +48,7 @@ def admin_required(f):
         user = conn.execute("SELECT * FROM users WHERE username = ?", (session["username"],)).fetchone()
         conn.close()
         if not user or user["role"] != "admin":
-            return "Доступ запрещён", 403
+            return "Zugriff verweigert", 403
         return f(*args, **kwargs)
     return wrapper
 
@@ -42,7 +60,7 @@ def home():
     conn.close()
 
     if not user:
-        flash("Пользователь не найден.")
+        flash("Benutzer nicht gefunden.", "danger")
         return redirect(url_for("login"))
 
     employee_number = str(user["employee_number"])
@@ -67,13 +85,13 @@ def view_folder(subdir):
     conn.close()
 
     if not user:
-        flash("Пользователь не найден.")
+        flash("Benutzer nicht gefunden.", "danger")
         return redirect(url_for("login"))
 
     employee_number = str(user["employee_number"])
     folder_path = os.path.join(UPLOAD_FOLDER, subdir) if subdir else UPLOAD_FOLDER
     if not os.path.isdir(folder_path):
-        return "Папка не найдена", 404
+        return "Ordner nicht gefunden", 404
 
     files = []
     for fname in os.listdir(folder_path):
@@ -83,12 +101,12 @@ def view_folder(subdir):
 
     return render_template("files.html", files=files, username=user["username"], role=user["role"], folder=subdir)
 
-@app.route("/uploads/<path:filename>")
+@app.route("/downloads/<path:filename>")
 @login_required
 def download(filename):
     safe_path = os.path.join(UPLOAD_FOLDER, filename)
     if not os.path.isfile(safe_path):
-        return "Файл не найден", 404
+        return "Datei nicht gefunden", 404
 
     conn = get_db_connection()
     user = conn.execute("SELECT * FROM users WHERE username = ?", (session["username"],)).fetchone()
@@ -96,9 +114,35 @@ def download(filename):
 
     if user["role"] != "admin":
         if str(user["employee_number"]) not in os.path.basename(filename):
-            return "Доступ запрещён", 403
+            return "Zugriff verweigert", 403
 
     return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
+
+@app.route("/get_pdf/<path:filename>")
+@login_required
+def get_pdf(filename):
+    safe_path = os.path.join(UPLOAD_FOLDER, filename)
+    if not os.path.isfile(safe_path):
+        return "Datei nicht gefunden", 404
+    conn = get_db_connection()
+    user = conn.execute("SELECT * FROM users WHERE username = ?", (session["username"],)).fetchone()
+    conn.close()
+    if user["role"] != "admin" and str(user["employee_number"]) not in os.path.basename(filename):
+        return "Zugriff verweigert", 403
+    return send_file(safe_path, mimetype="application/pdf")
+
+@app.route("/pdf/<path:filename>")
+@login_required
+def pdf_viewer(filename):
+    safe_path = os.path.join(UPLOAD_FOLDER, filename)
+    if not os.path.isfile(safe_path):
+        return "Datei nicht gefunden", 404
+    conn = get_db_connection()
+    user = conn.execute("SELECT * FROM users WHERE username = ?", (session["username"],)).fetchone()
+    conn.close()
+    if user["role"] != "admin" and str(user["employee_number"]) not in os.path.basename(filename):
+        return "Zugriff verweigert", 403
+    return render_template("pdf_viewer.html", filename=filename)
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -112,10 +156,10 @@ def login():
 
         if user and check_password_hash(user["password"], password):
             session["username"] = user["username"]
-            flash("Успешный вход!", "success")
+            flash("Anmeldung erfolgreich.", "success")
             return redirect(url_for("home"))
         else:
-            flash("Неверное имя пользователя или пароль.", "danger")
+            flash("Benutzername oder Passwort ist ungültig.", "danger")
 
     return render_template("login.html")
 
@@ -156,7 +200,7 @@ def admin_add_user():
                      (username, hashed, employee_number, role))
         conn.commit()
     except sqlite3.IntegrityError:
-        flash("Пользователь с таким именем уже существует.", "warning")
+        flash("Ein Benutzer mit diesem Namen existiert bereits.", "warning")
     conn.close()
     return redirect(url_for("admin_dashboard"))
 
@@ -174,4 +218,8 @@ def admin_add_news():
 if __name__ == "__main__":
     if not os.path.exists(UPLOAD_FOLDER):
         os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-    app.run(debug=True)
+    try:
+        ensure_db_from_excel()
+    except:
+        pass
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=True)

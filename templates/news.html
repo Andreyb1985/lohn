@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Новости</h2>
+<h2>Neuigkeiten</h2>
 <ul>
   {% for n in news_list %}
     <li><strong>{{ n['title'] }}</strong><br>{{ n['content'] }}</li>
   {% else %}
-    <li>Пока нет новостей.</li>
+    <li>Derzeit keine Neuigkeiten.</li>
   {% endfor %}
 </ul>
 {% endblock %}

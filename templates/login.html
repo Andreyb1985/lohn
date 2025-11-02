@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Eintritt</h2>
+<h2>Bitte melden Sie sich an</h2>
 <form method="post">
-  <label>Name</label><br>
-  <input name="username"><br>
+  <label>Benutzername</label><br>
+  <input name="username" required><br>
   <label>Passwort</label><br>
-  <input type="password" name="password"><br>
+  <input type="password" name="password" required><br>
   <button type="submit">Anmelden</button>
 </form>
 {% endblock %}

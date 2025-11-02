@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>PDF-Anzeige</title>
+  <script src="https://mozilla.github.io/pdf.js/build/pdf.js"></script>
+  <style>
+    body { margin:0; font-family: Arial, sans-serif; }
+    .toolbar { position: fixed; top:0; left:0; right:0; background:#333; color:white; padding:8px 12px; z-index:10; display:flex; justify-content:space-between; align-items:center; }
+    .toolbar button { background:#555; border:none; color:white; padding:6px 8px; margin-left:6px; cursor:pointer; }
+    #pdf-viewer { padding-top:56px; display:flex; justify-content:center; background:#ddd; min-height:100vh; }
+    canvas { box-shadow:0 2px 8px rgba(0,0,0,0.2); margin:20px 0; }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <div>
+      <button id="prev">←</button>
+      <button id="next">→</button>
+      <span>Seite <span id="page_num">1</span> / <span id="page_count">?</span></span>
+    </div>
+    <div>
+      <button onclick="location.href='{{ url_for('view_folder', subdir=(filename.rsplit('/',1)[0] if '/' in filename else '') ) }}'">Zurück zum Ordner</button>
+      <button onclick="location.href='{{ url_for('download', filename=filename) }}'">Herunterladen</button>
+    </div>
+  </div>
+
+  <div id="pdf-viewer"><canvas id="the-canvas"></canvas></div>
+
+<script>
+  const url = "{{ url_for('get_pdf', filename=filename) }}";
+  const pdfjsLib = window['pdfjs-dist/build/pdf'];
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://mozilla.github.io/pdf.js/build/pdf.worker.js';
+
+  let pdfDoc = null, pageNum = 1, pageRendering = false, pageNumPending = null;
+  const scale = 1.2;
+  const canvas = document.getElementById('the-canvas');
+  const ctx = canvas.getContext('2d');
+
+  function renderPage(num) {
+    pageRendering = true;
+    pdfDoc.getPage(num).then(function(page) {
+      const viewport = page.getViewport({scale});
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+
+      const renderContext = { canvasContext: ctx, viewport: viewport };
+      const renderTask = page.render(renderContext);
+
+      renderTask.promise.then(function() {
+        pageRendering = false;
+        document.getElementById('page_num').textContent = num;
+        if (pageNumPending !== null) { renderPage(pageNumPending); pageNumPending = null; }
+      });
+    });
+  }
+
+  function queueRenderPage(num) {
+    if (pageRendering) { pageNumPending = num; } else { renderPage(num); }
+  }
+
+  document.getElementById('prev').addEventListener('click', function(){ if(pageNum<=1) return; pageNum--; queueRenderPage(pageNum); });
+  document.getElementById('next').addEventListener('click', function(){ if(pageNum>=pdfDoc.numPages) return; pageNum++; queueRenderPage(pageNum); });
+
+  pdfjsLib.getDocument(url).promise.then(function(pdfDoc_) {
+    pdfDoc = pdfDoc_;
+    document.getElementById('page_count').textContent = pdfDoc.numPages;
+    renderPage(pageNum);
+  }).catch(function(err){ alert('PDF konnte nicht geladen werden: '+err); });
+</script>
+</body>
+</html>
