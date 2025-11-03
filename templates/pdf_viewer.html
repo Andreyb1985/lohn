@@ -28,7 +28,7 @@
   <div id="pdf-viewer"><canvas id="the-canvas"></canvas></div>
 
 <script>
-  const url = "{{ url_for('get_pdf', filename=filename) }}";
+  const url = window.location.origin + "{{ url_for('get_pdf', filename=filename) }}";
   const pdfjsLib = window['pdfjs-dist/build/pdf'];
   pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://mozilla.github.io/pdf.js/build/pdf.worker.js';
 
